@@ -1,6 +1,6 @@
 # Project Description
 
-A brief description of what this repository is for and what it contains
+This is a repo containing all codes of BF528 Project 1 for group 8
 
 # Contributors
 
