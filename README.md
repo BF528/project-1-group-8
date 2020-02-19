@@ -9,3 +9,4 @@ List contributor names and github user names, or email addresses if desired
 # Repository Contents
 
 programmer_script.Rmd is the R markdown file containing all codes in the programmer's role
+Analyst_script.R is the R script file containing all codes in the Analyst's role
