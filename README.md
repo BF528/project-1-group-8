@@ -1,5 +1,5 @@
 # Project Description
-
+Project 1: Microarray Based Tumor Classification Replication Analysis of Marisa et. al 1   
 This is a repo containing all codes of BF528 Project 1 for group 8
 
 # Contributors
