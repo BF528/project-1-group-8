@@ -1,0 +1,125 @@
+
+
+```{r}
+#1
+# importing library
+setwd('/projectnb/bf528/users/group_8/project_1/samples/') # setting working Dir to where samples are
+#2
+library(affy) # loading this package
+library(affyPLM) # loading this package
+library(sva) # loading this package
+library(AnnotationDbi) # loading this package
+library(hgu133plus2.db) # loading this package
+library(bladderbatch)
+
+```
+
+```{r}
+#3
+#reading files with ReadAffy
+setwd('/projectnb/bf528/users/group_8/project_1/samples/')
+p1_samples<- ReadAffy()
+
+# result produced 133 samples /54675 genes / hgu133plus2
+
+
+# running rma function on all samples (p1_samples)
+p1_samples_rma <- rma(p1_samples,normalize = TRUE)
+
+#Background correcting
+#Normalizing
+#Calculating Expression
+
+# looks to have ran okay
+
+
+```
+
+```{r}
+#4
+# using fitPLM function on samples
+plm_samples <- fitPLM(p1_samples,normalize = TRUE,background = TRUE)
+
+# converting plm data to stats data
+rlestats <- RLE(plm_samples,type = "stats")
+
+#isalating median in RLE data ( in second column first row)
+median_rle_stats <- rlestats[1,]
+
+# histogram of median 
+rle_hist <- hist(median_rle_stats)
+
+# converting nuse data to stats set
+nusestats <- NUSE(plm_samples,type = "stats")
+
+#isalating median in NUSE data 
+median_nuse_stats <- nusestats[1,]
+
+# histogram of median 
+nuse_hist <- hist(median_nuse_stats)
+
+
+```
+
+
+
+```{r}
+#5
+# Reading metadata.csv on SCC
+
+# Reading csv file  134 obs. of 75 variables
+metadata <- read.csv('/project/bf528/project_1/doc/proj_metadata.csv')
+
+
+
+#Changing RMA data to expresion data
+exprs_rma <- exprs(p1_samples_rma)
+
+#data <- pData(p1_samples_rma)
+
+# creating Mod argument for ComBat
+mod <- model.matrix(~as.factor(normalizationcombatmod), data = metadata)
+
+#Running ComBat
+combatrma <- ComBat(dat = exprs_rma, batch = metadata$normalizationcombatbatch, mod = mod)
+
+
+# Write this to a CSV
+
+write.csv(combatrma,'combatrma.csv')
+write.csv(exprs_rma,'exprs_rma.csv')
+
+
+```
+
+
+
+
+```{r}
+#6 Scaling and plotting PCA plots
+
+#transposeing ComBatrma data
+Transcombat <- -t(combatrma)
+# Scaling transposed data
+scale_combat <- scale(Transcombat, center=TRUE,scale=TRUE)
+#transposing scaled ComBat data
+Trans_scale_combat <- -t(scale_combat)
+# transforming data to prcomp format
+CombatPCA <- prcomp(Trans_scale_combat,scale=FALSE,center = FALSE)
+# PCA plot of Combated RMA data
+plot(CombatPCA$rotation)
+
+
+
+
+x <-  head(CombatPCA$rotation)
+
+
+
+
+
+
+
+```
+
+
