@@ -1,0 +1,183 @@
+---
+title: Caroline Muriithi(Biologist Part)
+
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+1.	The differential expression matrix you received has only probeset IDs, and not gene symbols. Using the select() function of the bioconductor package hgu133plus2.db, map the probeset IDs to gene symbols by specifying the appropriate key and column arguments. Some probeset IDs map to the same gene symbol, so reason about and pick a rationale for choosing which probeset ID to use as representative. Add an additional column to the differential expression results that contains one symbol for each probeset ID.
+
+###Read table and show elements in table
+```{r}
+
+##part 1(1)
+#BiocManager::install(c("affy","affyPLM","sva","AnnotationDbi","hgu133plus2.db"))
+#BiocManager::install("sva")
+library(Biobase)
+library(affy)
+library(affyPLM)
+library(AnnotationDbi)
+library(sva)
+library(hgu133plus2.db)
+library(genefilter)
+library(tidyverse)
+library("hgu133plus2.db")
+#read.csv("C:/Users/caroline/Desktop/differential_expression_results.csv")
+
+mydata = read.csv("differential_expression_results.csv")
+str(mydata)
+names<-row.names(mydata)
+library(hgu133plus2.db)
+x <- hgu133plus2ENTREZID
+mapped_probes <- mappedkeys(x)
+xx <- as.list(x[mapped_probes])
+ID<-NULL
+a<-c(1:22903)
+for (l in a){
+     if(length(xx[[names[l]]])>0){
+  ID<-c(ID,xx[[names[l]]])
+  }else{ID<-c(ID,0)}}
+c<-data.frame(ID,mydata)
+str(c)
+c[c == 0] <- NA
+
+
+#load data and select PROBESET ID (1)
+project_data <- read.csv('differential_expression_results.csv', header = TRUE, row.names = 1)
+#pdata <- read.csv('differential_expression_results.csv', header = TRUE, row.names = 1)
+
+x <- hgu133plus2.db
+keys(x)
+columns(x)
+keytypes(x)
+
+cols <- c("SYMBOL", "GENENAME", "UNIGENE", "UNIPROT")
+Sym_ID <- AnnotationDbi::select(x, keys=keys(x), columns=cols)
+
+ind <- match(rownames(project_data), Sym_ID$PROBEID)
+Gene_Symbol <- Sym_ID$SYMBOL[ind]
+```
+
+
+###or
+
+
+```{r}
+#BiocManager::install(c("affy", "affyPLM", "sva", "AnnotationDbi", "hgu133plus2.db"))
+library(BiocManager)
+library(affy)
+library(affyPLM)
+library(sva)
+library(AnnotationDbi)
+library(hgu133plus2.db)
+library(tidyverse)
+library(tidyverse)
+library(hgu133plus2.db)
+library(affy)
+
+
+DFE <- read_csv("differential_expression_results.csv", col_names = c('PROBEID','t','p','padj'))
+DFE <- DFE[-1,]
+DFE <- DFE %>%
+  mutate(t = as.numeric(t), p = as.numeric(p), padj = as.numeric(padj))
+symbol <- AnnotationDbi::select(hgu133plus2.db, DFE $PROBEID, c('SYMBOL'))
+head(DFE)
+head(symbol)
+```
+
+
+
+```{r symbolcondense, message=FALSE,warning=FALSE}
+
+cps <- function(x){
+  x %>% unique %>% sort %>% paste(cps = "|")
+}
+symbol <- symbol  %>% 
+  group_by(PROBEID) %>%
+  summarise_each(funs(cps)) %>%
+  ungroup
+head(symbol)
+
+GE_results <- merge(DFE,symbol , on = 'PROBEID')
+GE_results <- GE_results[!(is.na(diff$SYMBOL) | GE_results$SYMBOL==""), ]
+head(GE_results)
+
+```
+
+
+
+```{r iqr, message=FALSE, warning=FALSE}
+#finding all the symbols which map to 2 or more probesets
+counts <- GE_results %>%
+  group_by(SYMBOL) %>%
+  count() %>%
+  filter(n >= 2)
+counts[order(counts$n),]
+NDE_results <- data.frame(PROBEID = character(),
+                   t = numeric(),
+                   p = numeric(),
+                   padj = numeric(),
+                   SYMBOL = character())
+
+for (sym in counts$SYMBOL){
+  x <- GE_results[GE_results$SYMBOL == sym,]
+  x <- x[x$padj == min(x$padj),]
+  GE_results <- NDE_results[!diff$SYMBOL == sym,]
+  NDE_results <- rbind(diffexp,x) 
+}
+GE_results <- rbind(GE_results,diffexp)
+
+```
+
+###top 1000 genes , i.e, the top 500 positive and top 500 negative differentially expressed genes based on t-statistic value
+
+```{r top1000, message=FALSE, warning=FALSE}
+GE_results <- GE_results[order(GE_results$t, decreasing = TRUE),]
+head(GE_results)
+t1000_upregulated <- head(GE_results, n=1000)
+t1000_downregulated <- tail(GE_results, n=1000)
+head(t1000_upregulated)
+head(t1000_downregulated)
+n_upreg <- subset(GE_results, !GE_results$SYMBOL %in% top1000_up$SYMBOL)
+n_downreg <- subset(GE_results, !GE_results$SYMBOL %in% top1000_down$SYMBOL)
+finaldf <- read_csv ("differential_expression_results.csv", col_names = c('PROBEID','t','p','padj'))
+```
+
+#4.	We will use the GSEABase bioconductor package to load the genesets we downloaded as a GeneSetCollection. Read the package documentation to understand how to use the package, and find the function that is used to read in GMT formatted files. How many gene sets are there in each of the collections we are using?
+
+```{r}
+##Part 4 Use GSEABase
+#read gmt files and show number of elements
+library(GSEABase)
+KEGG <- getGmt("c2.cp.kegg.v7.0.symbols.gmt")
+KEGGg_terms <- sapply(KEGG@.Data,function(x) x@geneIds)
+names_KEGG <- sapply(KEGG@.Data,function(x) x@setName) 
+names(KEGGg_terms) <- names_KEGG
+#list/genesetcollection of length 186
+
+GO <- getGmt("c5.all.v7.0.symbols.gmt")
+GOg_terms <- sapply(GO@.Data,function(x) x@geneIds)
+GOnames <- sapply(GO@.Data,function(x) x@setName) 
+names(GOg_terms) <- names_GO
+##list/geneset collection of length 9996 elements
+
+
+Hall <- getGmt("h.all.v7.0.symbols.gmt")
+Hallg_terms <- sapply(Hall@.Data,function(x) x@geneIds)
+names_Hall <- sapply(Hall@.Data,function(x) x@setName) 
+names(Hallg_terms) <- names_Hall
+#list/geneset collection of length 50 elements
+
+
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
